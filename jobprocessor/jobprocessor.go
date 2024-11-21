@@ -79,9 +79,18 @@ func (jp *JobProcessor) FetchJob() (*Job, error) {
 	conn := jp.redisPool.Get()
 	defer conn.Close()
 
-	jobData, err := redis.Bytes(conn.Do("BRPOP", jp.jobQueue, 0))
+	res, err := redis.Values(conn.Do("BRPOP", jp.jobQueue, 0))
 	if err != nil {
 		return nil, err
+	}
+
+	if len(res) != 2 {
+		return nil, fmt.Errorf("unexpected BRPOP response format: %#v", res)
+	}
+
+	jobData, ok := res[1].([]byte)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type for job data: %#v", res[1])
 	}
 
 	var job Job
